@@ -1,6 +1,9 @@
 #include <vulkan/vulkan.hpp>
 #include <core/application/logger.hpp>
 #include "device.hpp"
+
+#include <iostream>
+
 #include "vulkan.hpp"
 
 namespace Core::Renderer {
@@ -61,21 +64,32 @@ namespace Core::Renderer {
     if (vkCreateDebugUtilsMessenger)
       vkCreateDebugUtilsMessenger(vulkanInstance, &debugCreateInfo, nullptr, &debugMessenger);
 
+    uint32_t physCount = 0;
+    vkEnumeratePhysicalDevices(vulkanInstance, &physCount, nullptr);
+    if (physCount == 0) {
+      std::cout << "No physical devices found" << std::endl;
+      return;
+    }
+    std::vector<VkPhysicalDevice> physDevices(physCount);
+    vkEnumeratePhysicalDevices(vulkanInstance, &physCount, physDevices.data());
 
+    VkPhysicalDevice phys = physDevices[0];
+    VkDeviceCreateInfo badDeviceInfo{};
+    badDeviceInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
+    badDeviceInfo.queueCreateInfoCount = 1;
+    badDeviceInfo.pQueueCreateInfos = nullptr;
 
-    VkPhysicalDeviceProperties props;
-    vkGetPhysicalDeviceProperties(VK_NULL_HANDLE, &props);
-
-
+    VkDevice badDevice;
+    vkCreateDevice(phys, &badDeviceInfo, nullptr, &badDevice);
   }
 
-  void VulkanDevice::destroyInstance() const {
+  void VulkanDevice::destroy() const {
     if (validationLayersEnabled) {
-      static const auto destroyMessenger = reinterpret_cast<PFN_vkDestroyDebugUtilsMessengerEXT>(
+      static const auto vkDestroyDebugUtilsMessenger = reinterpret_cast<PFN_vkDestroyDebugUtilsMessengerEXT>(
         vkGetInstanceProcAddr(vulkanInstance, "vkDestroyDebugUtilsMessengerEXT")
       );
-      // if (destroyMessenger != nullptr)
-      // destroyMessenger(vulkanInstance, debugMessenger, nullptr);
+      if (vkDestroyDebugUtilsMessenger != nullptr)
+        vkDestroyDebugUtilsMessenger(vulkanInstance, debugMessenger, nullptr);
     }
 
     vkDestroyInstance(vulkanInstance, nullptr);

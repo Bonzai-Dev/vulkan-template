@@ -11,7 +11,7 @@ namespace Core::Renderer {
         PFN_vkDebugUtilsMessengerCallbackEXT debugCallback
       );
 
-      void destroyInstance() const;
+      void destroy() const;
 
       VkInstance getInstance() const { return vulkanInstance; }
 

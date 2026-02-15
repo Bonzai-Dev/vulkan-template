@@ -24,7 +24,7 @@ namespace Core::Renderer {
   }
 
   Vulkan::~Vulkan() {
-    vulkanDevice.destroyInstance();
+    vulkanDevice.destroy();
   }
 
   void Vulkan::createInstance() {
