@@ -8,8 +8,6 @@ namespace Core {
 
       ~Window();
 
-      void destroy() const;
-
       void unlockMouse() const;
 
       void lockMouse() const;

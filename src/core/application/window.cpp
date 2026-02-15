@@ -1,25 +1,11 @@
 #include <iostream>
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_vulkan.h>
-#include <core/logger.hpp>
+#include <core/application/logger.hpp>
 #include "window.hpp"
 
 namespace Core {
   Window::Window(const char *windowName, bool mouseLocked) {
-    static bool sdlInitialized = false;
-    if (!sdlInitialized) {
-      if (!SDL_Init(SDL_INIT_VIDEO)) {
-        LOG_CORE_CRITICAL("Failed to initialize SDL Video: {}", SDL_GetError());
-        return;
-      }
-      sdlInitialized = true;
-    }
-
-    if (!SDL_Vulkan_LoadLibrary(nullptr)) {
-      LOG_CORE_CRITICAL("Failed to load Vulkan: {}", SDL_GetError());
-      return;
-    }
-
     // Get display information
     int displayCount;
     displays = SDL_GetDisplays(&displayCount);
@@ -43,27 +29,9 @@ namespace Core {
     }
 
     SDL_SetWindowRelativeMouseMode(sdlWindow, mouseLocked);
-
-    // Creating OpenGL context
-    // glContext = SDL_GL_CreateContext(sdlWindow);
-    // const int version = gladLoadGL(SDL_GL_GetProcAddress);
-    // if (!version) {
-    //   logError(Context::Renderer, "Failed to initialize OpenGL context.");
-    //   return;
-    // }
-
-    // logInfo(
-    //   Context::Renderer,
-    //   "Program has successfully initialized OpenGL %d.%d core profile.",
-    //   GLAD_VERSION_MAJOR(version), GLAD_VERSION_MINOR(version)
-    // );
   }
 
   Window::~Window() {
-    destroy();
-  }
-
-  void Window::destroy() const {
     SDL_DestroyWindow(sdlWindow);
     SDL_free(displays);
   }

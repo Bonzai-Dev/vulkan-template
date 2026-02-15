@@ -1,16 +1,20 @@
-#include <core/logger.hpp>
-#include <core/renderer.hpp>
+#include <core/application/logger.hpp>
+#include <core/renderer/renderer.hpp>
 #include <glm/glm.hpp>
 #include "application.hpp"
 
 namespace Core {
   Application::Application(const char *name) {
     Logger::initialize();
-    Renderer::initialize();
-
+    Renderer::initialize(Renderer::Backend::Vulkan);
     mainWindow = std::make_shared<Window>(name, true);
+
     running = true;
     run();
+  }
+
+  Application::~Application() {
+    quit();
   }
 
   void Application::run() const {

@@ -13,7 +13,7 @@ namespace Core {
     public:
       explicit Application(const char *name);
 
-      void run() const;
+      ~Application();
 
       bool keyDown(Inputs::KeyboardKey key, Inputs::KeyDetectMode detectMode) const;
 
@@ -34,6 +34,8 @@ namespace Core {
       void quit() const;
 
     private:
+      void run() const;
+
       void pollInputs() const;
 
       mutable double deltaTime = 0;
