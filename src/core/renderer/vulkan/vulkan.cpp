@@ -1,5 +1,7 @@
+#include <iostream>
 #include <SDL3/SDL_init.h>
 #include <SDL3/SDL_vulkan.h>
+#include <SDL3/SDL_hints.h>
 #include <core/application/logger.hpp>
 #include "vulkan.hpp"
 
@@ -15,6 +17,7 @@ namespace Core::Renderer {
       return;
     }
 
+    SDL_SetHint(SDL_HINT_RENDER_VULKAN_DEBUG, "1");
     createInstance();
 
     LOG_CORE_INFO("Successfully initialized Vulkan.");
@@ -25,33 +28,20 @@ namespace Core::Renderer {
   }
 
   void Vulkan::createInstance() {
-    if (validationLayersEnabled && !validationLayerSupported())
-      LOG_CORE_TRACE("Validation layers requested, but not available.");
-
-    VkApplicationInfo appInfo{};
-    appInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
-    appInfo.pApplicationName = "Vulkan Application";
-    appInfo.applicationVersion = VK_MAKE_VERSION(1, 0, 0);
-    appInfo.pEngineName = "Vulkan engine";
-    appInfo.engineVersion = VK_MAKE_VERSION(1, 0, 0);
-    appInfo.apiVersion = VK_API_VERSION_1_3;
-
-    VkInstanceCreateInfo createInfo = {};
-    createInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
-    createInfo.pApplicationInfo = &appInfo;
-    createInfo.pNext = nullptr;
-    createInfo.flags = 0;
-    const std::vector<const char*> extensions = getExtensions();
-    createInfo.enabledExtensionCount = extensions.size();
-    createInfo.ppEnabledExtensionNames = extensions.data();
-
-    if (validationLayersEnabled && validationLayerSupported()) {
-      createInfo.enabledLayerCount = static_cast<uint32_t>(ValidationLayers.size());
-      createInfo.ppEnabledLayerNames = ValidationLayers.data();
-    } else {
-      createInfo.enabledLayerCount = 0;
-      createInfo.pNext = nullptr;
+    uint32_t instanceLayerPropertyCount;
+    vkEnumerateInstanceLayerProperties(&instanceLayerPropertyCount, nullptr);
+    std::vector<VkLayerProperties> instanceLayerProperties(instanceLayerPropertyCount);
+    vkEnumerateInstanceLayerProperties(&instanceLayerPropertyCount, instanceLayerProperties.data());
+    for (size_t layerIndex = 0; layerIndex < instanceLayerPropertyCount; layerIndex++) {
+      const std::string layerName = instanceLayerProperties[layerIndex].layerName;
+      LOG_CORE_DEBUG("Found instance layer: {}", layerName);
+      if (debugEnabled && layerName == "VK_LAYER_KHRONOS_validation") {
+        validationLayersEnabled = true;
+        instanceLayers.push_back("VK_LAYER_KHRONOS_validation");
+      }
     }
+
+    vulkanDevice.createInstance(getExtensions(), instanceLayers, debugCallback);
   }
 
   VKAPI_ATTR VkBool32 Vulkan::debugCallback(
@@ -84,67 +74,39 @@ namespace Core::Renderer {
     return VK_FALSE;
   }
 
-  VkResult Vulkan::createDebugUtilsMessenger(
-    VkInstance instance,
-    const VkDebugUtilsMessengerCreateInfoEXT *pCreateInfo,
-    const VkAllocationCallbacks *pAllocator,
-    VkDebugUtilsMessengerEXT *pDebugMessenger
-  ) {
-    const static auto createMessenger = reinterpret_cast<PFN_vkCreateDebugUtilsMessengerEXT>(
-      vkGetInstanceProcAddr(instance, "vkCreateDebugUtilsMessengerEXT")
-    );
-    if (createMessenger != nullptr)
-      return createMessenger(instance, pCreateInfo, pAllocator, pDebugMessenger);
-    else
-      return VK_ERROR_EXTENSION_NOT_PRESENT;
-  }
+  // VkResult Vulkan::createDebugUtilsMessenger(
+  //   VkInstance instance,
+  //   const VkDebugUtilsMessengerCreateInfoEXT *pCreateInfo,
+  //   const VkAllocationCallbacks *pAllocator,
+  //   VkDebugUtilsMessengerEXT *pDebugMessenger
+  // ) {
+  //   const static auto createMessenger = reinterpret_cast<PFN_vkCreateDebugUtilsMessengerEXT>(
+  //     vkGetInstanceProcAddr(instance, "vkCreateDebugUtilsMessengerEXT")
+  //   );
+  //   if (createMessenger != nullptr) {
+  //     return createMessenger(instance, pCreateInfo, pAllocator, pDebugMessenger);
+  //   } else {
+  //     return VK_ERROR_EXTENSION_NOT_PRESENT;
+  //   }
+  // }
 
-  void Vulkan::destroyDebugUtilsMessenger(
-    VkInstance instance,
-    VkDebugUtilsMessengerEXT debugMessenger,
-    const VkAllocationCallbacks *pAllocator
-  ) {
-    static const auto destroyMessenger = reinterpret_cast<PFN_vkDestroyDebugUtilsMessengerEXT>(
-      vkGetInstanceProcAddr(instance, "vkDestroyDebugUtilsMessengerEXT")
-    );
-    if (destroyMessenger != nullptr)
-      destroyMessenger(instance, debugMessenger, pAllocator);
-  }
 
-  bool Vulkan::validationLayerSupported() {
-    static bool called = false;
-    static bool layerFound = false;
-    if (called)
-      return layerFound;
-
-    static uint32_t instanceLayerPropertyCount;
-    vkEnumerateInstanceLayerProperties(&instanceLayerPropertyCount, nullptr);
-    static std::vector<VkLayerProperties> instanceLayerProperties(instanceLayerPropertyCount);
-    vkEnumerateInstanceLayerProperties(&instanceLayerPropertyCount, instanceLayerProperties.data());
-
-    for (const auto &layerName: ValidationLayers) {
-      for (const auto &layerProperties: instanceLayerProperties) {
-        if (strcmp(layerName, layerProperties.layerName) == 0) {
-          layerFound = true;
-          called = true;
-          return true;
-        }
-      }
-
-      if (!layerFound) {
-        LOG_CORE_DEBUG("Vulkan validation layer not found: \"{}\".", layerName);
-        called = true;
-        return false;
-      }
-    }
-
-    return true;
-  }
+  // void Vulkan::destroyDebugUtilsMessenger(
+  //   VkInstance instance,
+  //   VkDebugUtilsMessengerEXT debugMessenger,
+  //   const VkAllocationCallbacks *pAllocator
+  // ) {
+  //   static const auto destroyMessenger = reinterpret_cast<PFN_vkDestroyDebugUtilsMessengerEXT>(
+  //     vkGetInstanceProcAddr(instance, "vkDestroyDebugUtilsMessengerEXT")
+  //   );
+  //   if (destroyMessenger != nullptr)
+  //     destroyMessenger(instance, debugMessenger, pAllocator);
+  // }
 
   std::vector<const char*> Vulkan::getExtensions() {
-    static uint32_t extensionCount = 0;
-    static char const *const*extensions = SDL_Vulkan_GetInstanceExtensions(&extensionCount);
-    static std::vector<const char*> extensionList(extensions, extensions + extensionCount);
+    uint32_t extensionCount = 0;
+    char const *const*extensions = SDL_Vulkan_GetInstanceExtensions(&extensionCount);
+    std::vector<const char*> extensionList(extensions, extensions + extensionCount);
 
     if (validationLayersEnabled)
       extensionList.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);

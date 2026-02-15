@@ -8,7 +8,7 @@ namespace Core::Renderer {
       void createInstance(
         const std::vector<const char*> &extensions,
         const std::vector<const char*> &layers,
-        PFN_vkDebugReportCallbackEXT debugCallback
+        PFN_vkDebugUtilsMessengerCallbackEXT debugCallback
       );
 
       void destroyInstance() const;
@@ -16,6 +16,8 @@ namespace Core::Renderer {
       VkInstance getInstance() const { return vulkanInstance; }
 
     private:
-      VkInstance vulkanInstance{};
+      bool validationLayersEnabled = false;
+      VkInstance vulkanInstance = VK_NULL_HANDLE;
+      VkDebugUtilsMessengerEXT debugMessenger = VK_NULL_HANDLE;
   };
 }

@@ -7,13 +7,19 @@ namespace Core::Renderer {
     public:
       ~Vulkan();
 
-      static void initialize();
+      #ifdef NDEBUG
+        static constexpr bool debugEnabled = false;
+      #else
+        static constexpr bool debugEnabled = true;
+      #endif
 
-      static bool validationLayerSupported();
+      static void initialize();
 
       static std::vector<const char*> getExtensions();
 
-      static const VulkanDevice &getInstance() { return vulkanDevice; }
+      static const VulkanDevice &getDevice() { return vulkanDevice; }
+
+      static bool validationLayersSupported() { return validationLayersEnabled; }
 
       static void createInstance();
 
@@ -23,26 +29,25 @@ namespace Core::Renderer {
         const VkDebugUtilsMessengerCallbackDataEXT *pCallbackData,
         void *pUserData
       );
-
-      static VkResult createDebugUtilsMessenger(
-        VkInstance instance,
-        const VkDebugUtilsMessengerCreateInfoEXT *pCreateInfo,
-        const VkAllocationCallbacks *pAllocator,
-        VkDebugUtilsMessengerEXT *pDebugMessenger
-      );
-
-      static void destroyDebugUtilsMessenger(
-        VkInstance instance,
-        VkDebugUtilsMessengerEXT debugMessenger,
-        const VkAllocationCallbacks *pAllocator
-      );
+      //
+      // static VkResult createDebugUtilsMessenger(
+      //   VkInstance instance,
+      //   const VkDebugUtilsMessengerCreateInfoEXT *pCreateInfo,
+      //   const VkAllocationCallbacks *pAllocator,
+      //   VkDebugUtilsMessengerEXT *pDebugMessenger
+      // );
+      //
+      // static void destroyDebugUtilsMessenger(
+      //   VkInstance instance,
+      //   VkDebugUtilsMessengerEXT debugMessenger,
+      //   const VkAllocationCallbacks *pAllocator
+      // );
+      //
+      // static void createDebugCallback();
 
     private:
       static inline VulkanDevice vulkanDevice;
-      #ifdef NDEBUG
-        static constexpr bool validationLayersEnabled = false;
-      #else
-        static constexpr bool validationLayersEnabled = true;
-      #endif
+      static inline std::vector<const char *> instanceLayers;
+      static inline bool validationLayersEnabled = false;
   };
 }
