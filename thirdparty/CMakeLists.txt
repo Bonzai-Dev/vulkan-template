@@ -12,5 +12,6 @@ target_link_libraries(${CMAKE_PROJECT_NAME} PUBLIC glm::glm)
 
 # Vulkan
 find_package(Vulkan REQUIRED)
+target_compile_definitions(${PROJECT_NAME} PRIVATE VK_NO_PROTOTYPES)
 target_include_directories(${PROJECT_NAME} PRIVATE ${Vulkan_INCLUDE_DIRS})
 target_link_libraries(${PROJECT_NAME} PRIVATE Vulkan::Vulkan Vulkan::Headers)

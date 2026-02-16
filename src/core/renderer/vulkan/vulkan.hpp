@@ -29,21 +29,6 @@ namespace Core::Renderer {
         const VkDebugUtilsMessengerCallbackDataEXT *pCallbackData,
         void *pUserData
       );
-      //
-      // static VkResult createDebugUtilsMessenger(
-      //   VkInstance instance,
-      //   const VkDebugUtilsMessengerCreateInfoEXT *pCreateInfo,
-      //   const VkAllocationCallbacks *pAllocator,
-      //   VkDebugUtilsMessengerEXT *pDebugMessenger
-      // );
-      //
-      // static void destroyDebugUtilsMessenger(
-      //   VkInstance instance,
-      //   VkDebugUtilsMessengerEXT debugMessenger,
-      //   const VkAllocationCallbacks *pAllocator
-      // );
-      //
-      // static void createDebugCallback();
 
     private:
       static inline VulkanDevice vulkanDevice;

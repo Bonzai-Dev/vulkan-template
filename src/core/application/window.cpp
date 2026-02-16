@@ -6,7 +6,6 @@
 
 namespace Core {
   Window::Window(const char *windowName, bool mouseLocked) {
-    // Get display information
     int displayCount;
     displays = SDL_GetDisplays(&displayCount);
     if (displayCount > 0)

@@ -1,8 +1,8 @@
-#include <iostream>
 #include <SDL3/SDL_init.h>
 #include <SDL3/SDL_vulkan.h>
 #include <SDL3/SDL_hints.h>
 #include <core/application/logger.hpp>
+#include "volk.h"
 #include "vulkan.hpp"
 
 namespace Core::Renderer {
@@ -16,6 +16,11 @@ namespace Core::Renderer {
       LOG_CORE_CRITICAL("Failed to load Vulkan: {}", SDL_GetError());
       return;
     }
+
+      if (volkInitialize() != VK_SUCCESS) {
+        LOG_CORE_CRITICAL("Failed to load Vulkan. Vulkan may be missing on your system.");
+        return;
+      }
 
     SDL_SetHint(SDL_HINT_RENDER_VULKAN_DEBUG, "1");
     createInstance();
@@ -73,35 +78,6 @@ namespace Core::Renderer {
 
     return VK_FALSE;
   }
-
-  // VkResult Vulkan::createDebugUtilsMessenger(
-  //   VkInstance instance,
-  //   const VkDebugUtilsMessengerCreateInfoEXT *pCreateInfo,
-  //   const VkAllocationCallbacks *pAllocator,
-  //   VkDebugUtilsMessengerEXT *pDebugMessenger
-  // ) {
-  //   const static auto createMessenger = reinterpret_cast<PFN_vkCreateDebugUtilsMessengerEXT>(
-  //     vkGetInstanceProcAddr(instance, "vkCreateDebugUtilsMessengerEXT")
-  //   );
-  //   if (createMessenger != nullptr) {
-  //     return createMessenger(instance, pCreateInfo, pAllocator, pDebugMessenger);
-  //   } else {
-  //     return VK_ERROR_EXTENSION_NOT_PRESENT;
-  //   }
-  // }
-
-
-  // void Vulkan::destroyDebugUtilsMessenger(
-  //   VkInstance instance,
-  //   VkDebugUtilsMessengerEXT debugMessenger,
-  //   const VkAllocationCallbacks *pAllocator
-  // ) {
-  //   static const auto destroyMessenger = reinterpret_cast<PFN_vkDestroyDebugUtilsMessengerEXT>(
-  //     vkGetInstanceProcAddr(instance, "vkDestroyDebugUtilsMessengerEXT")
-  //   );
-  //   if (destroyMessenger != nullptr)
-  //     destroyMessenger(instance, debugMessenger, pAllocator);
-  // }
 
   std::vector<const char*> Vulkan::getExtensions() {
     uint32_t extensionCount = 0;
