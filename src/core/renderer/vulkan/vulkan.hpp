@@ -15,13 +15,24 @@ namespace Core::Renderer {
 
       static void initialize();
 
+      static void setupDebugMessenger();
+
       static std::vector<const char*> getExtensions();
 
       static const VulkanDevice &getDevice() { return vulkanDevice; }
 
       static bool validationLayersSupported() { return validationLayersEnabled; }
 
-      static void createInstance();
+      static VkResult CreateDebugUtilsMessengerEXT(VkInstance instance, const VkDebugUtilsMessengerCreateInfoEXT *pCreateInfo,
+                                            const VkAllocationCallbacks *pAllocator,
+                                            VkDebugUtilsMessengerEXT *pDebugMessenger);
+
+      static void DestroyDebugUtilsMessengerEXT(VkInstance instance, VkDebugUtilsMessengerEXT debugMessenger,
+                                         const VkAllocationCallbacks *pAllocator);
+
+      static void populateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT &createInfo);
+
+      static bool checkValidationLayerSupport();
 
       static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(
         VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
@@ -29,25 +40,13 @@ namespace Core::Renderer {
         const VkDebugUtilsMessengerCallbackDataEXT *pCallbackData,
         void *pUserData
       );
-      //
-      // static VkResult createDebugUtilsMessenger(
-      //   VkInstance instance,
-      //   const VkDebugUtilsMessengerCreateInfoEXT *pCreateInfo,
-      //   const VkAllocationCallbacks *pAllocator,
-      //   VkDebugUtilsMessengerEXT *pDebugMessenger
-      // );
-      //
-      // static void destroyDebugUtilsMessenger(
-      //   VkInstance instance,
-      //   VkDebugUtilsMessengerEXT debugMessenger,
-      //   const VkAllocationCallbacks *pAllocator
-      // );
-      //
-      // static void createDebugCallback();
 
     private:
       static inline VulkanDevice vulkanDevice;
       static inline std::vector<const char *> instanceLayers;
       static inline bool validationLayersEnabled = false;
+
+      static inline VkInstance vulkanInstance = VK_NULL_HANDLE;
+      static inline VkDebugUtilsMessengerEXT debugMessenger = VK_NULL_HANDLE;
   };
 }
