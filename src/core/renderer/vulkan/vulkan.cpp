@@ -16,23 +16,29 @@ namespace Core::Renderer {
       LOG_CORE_CRITICAL("Failed to load Vulkan: {}", SDL_GetError());
       return;
     }
-
-      if (volkInitialize() != VK_SUCCESS) {
-        LOG_CORE_CRITICAL("Failed to load Vulkan. Vulkan may be missing on your system.");
-        return;
-      }
-
     SDL_SetHint(SDL_HINT_RENDER_VULKAN_DEBUG, "1");
-    createInstance();
 
-    LOG_CORE_INFO("Successfully initialized Vulkan.");
+    if (volkInitialize() != VK_SUCCESS) {
+      LOG_CORE_CRITICAL("Failed to load Vulkan. Vulkan drivers may be missing on your system.");
+      return;
+    }
+
+    if (createInstance() != VK_SUCCESS) {
+      LOG_CORE_CRITICAL("Failed to create Vulkan instance.");
+      return;
+    }
+
+    uint32_t version = 0;
+    vkEnumerateInstanceVersion(&version);
+    LOG_CORE_INFO("Running Vulkan at version {}.{}.{}.", VK_VERSION_MAJOR(version), VK_VERSION_MINOR(version), VK_VERSION_PATCH(version));
   }
 
   Vulkan::~Vulkan() {
-    vulkanDevice.destroyInstance();
+    vulkanDevice.destroy();
   }
 
-  void Vulkan::createInstance() {
+  VkResult Vulkan::createInstance() {
+    // Adding vulkan layers
     uint32_t instanceLayerPropertyCount;
     vkEnumerateInstanceLayerProperties(&instanceLayerPropertyCount, nullptr);
     std::vector<VkLayerProperties> instanceLayerProperties(instanceLayerPropertyCount);
@@ -46,7 +52,7 @@ namespace Core::Renderer {
       }
     }
 
-    vulkanDevice.createInstance(getExtensions(), instanceLayers, debugCallback);
+    return vulkanDevice.createInstance(getExtensions(), instanceLayers);
   }
 
   VKAPI_ATTR VkBool32 Vulkan::debugCallback(
