@@ -92,7 +92,12 @@ namespace Core::Renderer {
   VkDebugUtilsMessengerCreateInfoEXT VulkanDevice::createDebugInfo() {
     return {
       .sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT,
-      .pNext = nullptr,
+
+        void VulkanDevice::
+createLogicalDevice() {
+        uint32_t queueFamilyCount = 0;
+
+      }      .pNext = nullptr,
       .messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT |
                          VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT |
                          VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT,
@@ -103,4 +108,53 @@ namespace Core::Renderer {
       .pUserData = nullptr
     };
   }
+
+  void VulkanDevice::createPhysicalDevice(std::uint32_t deviceId) {
+    uint32_t deviceCount = 0;
+    vkEnumeratePhysicalDevices(vulkanInstance, &deviceCount, nullptr);
+    if (deviceCount == 0) {
+      LOG_CORE_CRITICAL("Cannot find any GPUs with Vulkan support.");
+      return;
+    }
+
+    if(deviceId >= deviceCount ) {
+      LOG_CORE_WARNING("Requested device index {} but there's only {} devices.", deviceId, deviceCount);
+      deviceId = 0;
+    }
+
+    LOG_CORE_INFO("Selecting GPU {}", deviceId);
+
+    std::vector<VkPhysicalDevice> devices(deviceCount);
+    vkEnumeratePhysicalDevices(vulkanInstance, &deviceCount, devices.data());
+    physicalDevice = devices[deviceId];
+
+    vkGetPhysicalDeviceMemoryProperties(physicalDevice, &deviceMemoryProperties);
+    vkGetPhysicalDeviceFeatures(physicalDevice, &deviceFeatures);
+
+    if(!deviceFeatures.geometryShader)
+      supportedStages ^= VK_PIPELINE_STAGE_GEOMETRY_SHADER_BIT;
+    if(!deviceFeatures.tessellationShader) {
+      supportedStages ^= VK_PIPELINE_STAGE_TESSELLATION_CONTROL_SHADER_BIT |
+        VK_PIPELINE_STAGE_TESSELLATION_EVALUATION_SHADER_BIT;
+    }
+  }
+
+  void VulkanDevice::createLogicalDevice() {
+    uint32_t queueFamilyCount = 0;
+    vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, &queueFamilyCount, nullptr);
+    vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, &queueFamilyCount, queueFamilies.data());
+
+  }
+
+  void findGraphicsQueue() {
+    // int queueCount = 0;
+    // for (const auto& queueFamily : queueFamilies) {
+    //   if (queueFamily.queueFlags & VK_QUEUE_GRAPHICS_BIT) {
+    //     indices.graphicsFamily = i;
+    //   }
+    //
+    //   i++;
+    // }
+  }
+
 }

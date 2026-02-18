@@ -23,7 +23,21 @@ namespace Core::Renderer {
       return;
     }
 
-    if (createInstance() != VK_SUCCESS) {
+    if (vulkanDevice.createInstance(getExtensions(), instanceLayers) != VK_SUCCESS) {
+      // Adding vulkan layers
+      uint32_t instanceLayerPropertyCount;
+      vkEnumerateInstanceLayerProperties(&instanceLayerPropertyCount, nullptr);
+      std::vector<VkLayerProperties> instanceLayerProperties(instanceLayerPropertyCount);
+      vkEnumerateInstanceLayerProperties(&instanceLayerPropertyCount, instanceLayerProperties.data());
+      for (size_t layerIndex = 0; layerIndex < instanceLayerPropertyCount; layerIndex++) {
+        const std::string layerName = instanceLayerProperties[layerIndex].layerName;
+        LOG_CORE_DEBUG("Found instance layer: {}", layerName);
+        if (debugEnabled && layerName == "VK_LAYER_KHRONOS_validation") {
+          validationLayersEnabled = true;
+          instanceLayers.push_back("VK_LAYER_KHRONOS_validation");
+        }
+      }
+
       LOG_CORE_CRITICAL("Failed to create Vulkan instance.");
       return;
     }
@@ -35,24 +49,6 @@ namespace Core::Renderer {
 
   Vulkan::~Vulkan() {
     vulkanDevice.destroy();
-  }
-
-  VkResult Vulkan::createInstance() {
-    // Adding vulkan layers
-    uint32_t instanceLayerPropertyCount;
-    vkEnumerateInstanceLayerProperties(&instanceLayerPropertyCount, nullptr);
-    std::vector<VkLayerProperties> instanceLayerProperties(instanceLayerPropertyCount);
-    vkEnumerateInstanceLayerProperties(&instanceLayerPropertyCount, instanceLayerProperties.data());
-    for (size_t layerIndex = 0; layerIndex < instanceLayerPropertyCount; layerIndex++) {
-      const std::string layerName = instanceLayerProperties[layerIndex].layerName;
-      LOG_CORE_DEBUG("Found instance layer: {}", layerName);
-      if (debugEnabled && layerName == "VK_LAYER_KHRONOS_validation") {
-        validationLayersEnabled = true;
-        instanceLayers.push_back("VK_LAYER_KHRONOS_validation");
-      }
-    }
-
-    return vulkanDevice.createInstance(getExtensions(), instanceLayers);
   }
 
   VKAPI_ATTR VkBool32 Vulkan::debugCallback(

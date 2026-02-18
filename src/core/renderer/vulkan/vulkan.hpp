@@ -21,8 +21,6 @@ namespace Core::Renderer {
 
       static bool validationLayersSupported() { return validationLayersEnabled; }
 
-      static VkResult createInstance();
-
       static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(
         VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
         VkDebugUtilsMessageTypeFlagsEXT messageType,
