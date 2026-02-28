@@ -29,8 +29,8 @@ namespace Core::Renderer {
       );
 
     private:
-      static inline VulkanDevice vulkanDevice;
-      static inline std::vector<const char *> instanceLayers;
+      static inline VulkanDevice vulkanDevice{};
+      static inline std::vector<const char*> instanceLayers;
       static inline bool validationLayersEnabled = false;
   };
 }
