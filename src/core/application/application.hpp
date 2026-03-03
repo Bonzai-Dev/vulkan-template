@@ -4,6 +4,8 @@
 #include <vector>
 #include <glm/gtc/constants.hpp>
 #include <glm/glm.hpp>
+#include <core/application/logger.hpp>
+#include <core/renderer/renderer.hpp>
 #include "window.hpp"
 #include "render_layer.hpp"
 #include "inputs.hpp"
@@ -37,6 +39,9 @@ namespace Core {
       void run() const;
 
       void pollInputs() const;
+
+      Logger logger;
+      Graphics::Renderer renderer{Graphics::Renderer::Backend::Vulkan};
 
       mutable double deltaTime = 0;
       mutable glm::vec2 mouseDelta = glm::zero<glm::vec2>();

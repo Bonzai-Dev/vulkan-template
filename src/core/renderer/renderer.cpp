@@ -1,9 +1,9 @@
 #include "renderer.hpp"
 #include "vulkan/vulkan.hpp"
 
-namespace Core {
-  void Renderer::initialize(Backend backend) {
+namespace Core::Graphics {
+  Renderer::Renderer(Backend backend) : backend(backend) {
     if (backend == Backend::Vulkan)
-      Vulkan::initialize();
+      Vulkan vulkan = Vulkan();
   }
 }

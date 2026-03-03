@@ -4,113 +4,17 @@
 #include "queue.hpp"
 #include "vulkan.hpp"
 
-namespace Core::Renderer {
-  VulkanDevice::VulkanDevice() {
-
+namespace Core::Graphics {
+  VulkanDevice::VulkanDevice(VkInstance &vulkanInstance) : vulkanInstance(vulkanInstance) {
   }
 
-  VkResult VulkanDevice::createInstance(
-    const std::vector<const char *> &extensions,
-    const std::vector<const char *> &layers
-  ) {
-    validationLayersEnabled = Vulkan::validationLayersSupported() && Vulkan::debugEnabled;
-
-    constexpr VkApplicationInfo appInfo{
-      .sType = VK_STRUCTURE_TYPE_APPLICATION_INFO,
-      .pApplicationName = "Vulkan Application",
-      .applicationVersion = VK_MAKE_VERSION(1, 0, 0),
-      .pEngineName = "Vulkan engine",
-      .engineVersion = VK_MAKE_VERSION(1, 0, 0),
-      .apiVersion = VK_MAKE_VERSION(1, 3, 0),
-    };
-
-    VkInstanceCreateInfo createInfo{
-      .sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO,
-      .pNext = nullptr,
-      .flags = 0,
-      .pApplicationInfo = &appInfo,
-      .enabledExtensionCount = static_cast<uint32_t>(extensions.size()),
-      .ppEnabledExtensionNames = extensions.data()
-    };
-
-    VkDebugUtilsMessengerCreateInfoEXT debugInfo{};
-    if (validationLayersEnabled) {
-      createInfo.enabledLayerCount = static_cast<uint32_t>(layers.size());
-      createInfo.ppEnabledLayerNames = layers.data();
-
-      debugInfo = createDebugInfo();
-      createInfo.pNext = &debugInfo;
-    } else {
-      createInfo.enabledLayerCount = 0;
-      createInfo.pNext = nullptr;
-      LOG_CORE_TRACE("Vulkan validation layers requested, but not available.");
-    }
-
-    if (vkCreateInstance(&createInfo, nullptr, &vulkanInstance) != VK_SUCCESS) {
-      LOG_CORE_ERROR("Failed to create Vulkan instance.");
-      return VK_ERROR_INITIALIZATION_FAILED;
-    }
-
-    volkLoadInstance(vulkanInstance);
-
-    if (validationLayersEnabled)
-      createDebugUtilsMessenger(vulkanInstance, createDebugInfo(), nullptr, &debugMessenger);
-
-    return VK_SUCCESS;
+  VulkanDevice::~VulkanDevice() {
+    vkDestroyDevice(logicalDevice, nullptr);
   }
 
-  void VulkanDevice::destroy() const {
-    if (validationLayersEnabled)
-      deleteDebugUtilsMessenger(vulkanInstance, nullptr, &debugMessenger);
-
-    vkDestroyInstance(vulkanInstance, nullptr);
-  }
-
-  VkResult VulkanDevice::createDebugUtilsMessenger(
-    const VkInstance &instance,
-    const VkDebugUtilsMessengerCreateInfoEXT &createInfo,
-    const VkAllocationCallbacks *allocator,
-    VkDebugUtilsMessengerEXT *debugMessenger
-  ) {
-    static const auto vkCreateDebugUtilsMessenger = reinterpret_cast<PFN_vkCreateDebugUtilsMessengerEXT>(
-      vkGetInstanceProcAddr(instance, "vkCreateDebugUtilsMessengerEXT")
-    );
-    if (vkCreateDebugUtilsMessenger != nullptr)
-      return vkCreateDebugUtilsMessenger(instance, &createInfo, nullptr, debugMessenger);
-
-    LOG_CORE_ERROR("Failed to attach debugger. \"vkCreateDebugUtilsMessengerEXT\" extension not present.");
-    return VK_ERROR_EXTENSION_NOT_PRESENT;
-  }
-
-  void VulkanDevice::deleteDebugUtilsMessenger(
-    const VkInstance &instance,
-    const VkAllocationCallbacks *allocator,
-    const VkDebugUtilsMessengerEXT *debugMessenger
-  ) {
-    static const auto vkDestroyDebugUtilsMessenger = reinterpret_cast<PFN_vkDestroyDebugUtilsMessengerEXT>(
-      vkGetInstanceProcAddr(instance, "vkDestroyDebugUtilsMessengerEXT")
-    );
-    if (vkDestroyDebugUtilsMessenger != nullptr)
-      vkDestroyDebugUtilsMessenger(instance, *debugMessenger, nullptr);
-  }
-
-  VkDebugUtilsMessengerCreateInfoEXT VulkanDevice::createDebugInfo() {
-    return {
-      .sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT,
-
-      // void VulkanDevice::createLogicalDevice() {
-      // uint32_t queueFamilyCount = 0;
-      // }
-      .pNext = nullptr,
-      .messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT |
-                         VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT |
-                         VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT,
-      .messageType = VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT |
-                     VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT |
-                     VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT,
-      .pfnUserCallback = &Vulkan::debugCallback,
-      .pUserData = nullptr
-    };
+  void VulkanDevice::initialize(const std::vector<const char*> &extensions, std::uint32_t deviceId) {
+    createPhysicalDevice(deviceId);
+    createLogicalDevice();
   }
 
   void VulkanDevice::createPhysicalDevice(std::uint32_t deviceId) {
@@ -126,126 +30,217 @@ namespace Core::Renderer {
       deviceId = 0;
     }
 
-    LOG_CORE_INFO("Selecting GPU {}", deviceId);
-
     std::vector<VkPhysicalDevice> devices(deviceCount);
     vkEnumeratePhysicalDevices(vulkanInstance, &deviceCount, devices.data());
     physicalDevice = devices[deviceId];
 
     vkGetPhysicalDeviceMemoryProperties(physicalDevice, &deviceMemoryProperties);
+    vkGetPhysicalDeviceProperties(physicalDevice, &deviceProperties);
     vkGetPhysicalDeviceFeatures(physicalDevice, &deviceFeatures);
+
+    LOG_CORE_INFO("Using {} as primary GPU.", getName());
+
+    const std::uint32_t version = deviceProperties.apiVersion;
+    LOG_CORE_DEBUG(
+      "{} supports Vulkan up to {}.{}.{}.",
+      getName(),
+      VK_VERSION_MAJOR(version), VK_VERSION_MINOR(version),
+      VK_VERSION_PATCH(version)
+    );
 
     if (!deviceFeatures.geometryShader)
       supportedStages ^= VK_PIPELINE_STAGE_GEOMETRY_SHADER_BIT;
+
     if (!deviceFeatures.tessellationShader)
-      supportedStages ^= VK_PIPELINE_STAGE_TESSELLATION_CONTROL_SHADER_BIT | VK_PIPELINE_STAGE_TESSELLATION_EVALUATION_SHADER_BIT;
+      supportedStages ^= VK_PIPELINE_STAGE_TESSELLATION_CONTROL_SHADER_BIT |
+          VK_PIPELINE_STAGE_TESSELLATION_EVALUATION_SHADER_BIT;
   }
 
-  void VulkanDevice::createLogicalDevice(
-    std::vector<const char*> &extensions,
-    std::uint32_t maxComputeQueues,
-    std::uint32_t maxTransferQueues
-  ) {
+  VkResult VulkanDevice::createLogicalDevice() {
     uint32_t queueFamilyCount = 0;
     vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, &queueFamilyCount, nullptr);
-    vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, &queueFamilyCount, queueFamilies.data());
+    queueFamilyProperties.resize(queueFamilyCount);
+    vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, &queueFamilyCount, queueFamilyProperties.data());
 
-    std::vector<VkDeviceQueueCreateInfo> queueCreateInfo;
-    fillQueueCreationInfo( maxComputeQueues, maxTransferQueues, queueCreateInfo);
+    // Creating queues
+    std::vector<VkDeviceQueueCreateInfo> queuesCreateInfo;
+    // Track the number of queues for each family. The index is the same as the queue family index.
+    std::vector<std::uint32_t> usedQueuesCount(queueFamilyCount, 0);
 
-    std::vector<std::vector<float>> queuePriorities;
-    queuePriorities.resize( queueCreateInfo.size() );
+    graphicsQueue = findGraphicsQueue(usedQueuesCount);
+    computeQueues = findComputeQueue(usedQueuesCount);
+    transferQueues = findTransferQueues(usedQueuesCount);
 
-    for( size_t i = 0u; i < queueCreateInfo.size(); ++i )
-    {
-      queuePriorities[i].resize( queueCreateInfo[i].queueCount, 1.0f );
-      queueCreateInfo[i].pQueuePriorities = queuePriorities[i].data();
+    for (size_t queueIndex = 0; queueIndex < queueFamilyCount; queueIndex++) {
+      VkDeviceQueueCreateInfo deviceQueueCreateInfo{
+        .sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
+        .queueFamilyIndex = static_cast<std::uint32_t>(queueIndex),
+        .queueCount = usedQueuesCount[queueIndex]
+      };
+
+      if (deviceQueueCreateInfo.queueCount > 0)
+        queuesCreateInfo.push_back(deviceQueueCreateInfo);
     }
 
-    // extensions.push_back( VK_KHR_SWAPCHAIN_EXTENSION_NAME );
-
-  }
-
-  void VulkanDevice::fillQueueCreationInfo(
-    std::uint32_t maxComputeQueue, std::uint32_t maxTransferQueue,
-    std::vector<VkDeviceQueueCreateInfo> &queuesCreateInfo
-  ) {
-    const size_t queueCount = queueFamilies.size();
-    std::vector<std::uint32_t> usedQueueCount(queueCount, 0);
-
-    graphicsQueue = findGraphicsQueue(usedQueueCount);
-    computeQueues = findComputeQueue(usedQueueCount, maxComputeQueue);
-    transferQueues = findTransferQueue(usedQueueCount, maxTransferQueue);
-
-    VkDeviceQueueCreateInfo queueCreateInfo = {VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO};
-    for (size_t queueIndex = 0; queueIndex < queueCount; queueIndex++) {
-      queueCreateInfo.queueFamilyIndex = static_cast<std::uint32_t>(queueIndex);
-      queueCreateInfo.queueCount = usedQueueCount[queueIndex];
-      if (queueCreateInfo.queueCount > 0)
-        queuesCreateInfo.push_back(queueCreateInfo);
+    std::vector<std::vector<float> > queuePriorities;
+    queuePriorities.resize(queuesCreateInfo.size());
+    for (size_t infoIndex = 0; infoIndex < queuesCreateInfo.size(); infoIndex++) {
+      queuePriorities[infoIndex].resize(queuesCreateInfo[infoIndex].queueCount, 1.0f);
+      queuesCreateInfo[infoIndex].pQueuePriorities = queuePriorities[infoIndex].data();
     }
+
+    const std::vector<const char*> deviceExtensions = getExtensions();
+    const VkDeviceCreateInfo deviceCreateInfo{
+      .sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
+      .queueCreateInfoCount = static_cast<std::uint32_t>(queuesCreateInfo.size()),
+      .pQueueCreateInfos = &queuesCreateInfo[0],
+      .enabledExtensionCount = static_cast<std::uint32_t>(deviceExtensions.size()),
+      .ppEnabledExtensionNames = deviceExtensions.data(),
+      .pEnabledFeatures = &deviceFeatures
+    };
+
+    const VkResult result = vkCreateDevice(physicalDevice, &deviceCreateInfo, nullptr, &logicalDevice);
+    if (result != VK_SUCCESS) {
+      LOG_CORE_CRITICAL("Failed to create logical device for {}.", getName());
+      return result;
+    }
+
+    volkLoadDevice(logicalDevice);
+
+    return result;
   }
 
-  VulkanQueue VulkanDevice::findGraphicsQueue(std::vector<std::uint32_t> &usedQueues) const {
-    const size_t queueCount = queueFamilies.size();
-    for (size_t queueIndex = 0; queueIndex < queueCount; queueIndex++) {
-      if (queueFamilies[queueIndex].queueFlags & VK_QUEUE_GRAPHICS_BIT &&
-          usedQueues[queueIndex] < queueFamilies[queueIndex].queueCount) {
-        usedQueues[queueIndex]++;
+  VulkanQueue VulkanDevice::findGraphicsQueue(std::vector<std::uint32_t> &usedQueuesCount) const {
+    const size_t familyCount = queueFamilyProperties.size();
+    for (size_t familyIndex = 0; familyIndex < familyCount; familyIndex++) {
+      if (queueFamilyProperties[familyIndex].queueFlags & VK_QUEUE_GRAPHICS_BIT &&
+          usedQueuesCount[familyIndex] < queueFamilyProperties[familyIndex].queueCount) {
+        usedQueuesCount[familyIndex]++;
+
+        LOG_CORE_TRACE(
+          "Found graphics queue in family {} with {} queues.",
+          familyIndex,
+          queueFamilyProperties[familyIndex].queueCount
+        );
+
         return {
           VulkanQueue::Type::Graphics,
-          static_cast<std::uint32_t>(queueIndex),
-          usedQueues[queueIndex]
+          static_cast<std::uint32_t>(familyIndex),
+          usedQueuesCount[familyIndex]
         };
       }
     }
 
-    LOG_CORE_WARNING("GPU does not expose Graphics queue. Cannot be used for rendering.");
+    LOG_CORE_CRITICAL("GPU does not expose Graphics queue. Cannot be used for rendering.");
 
     return {VulkanQueue::Type::Graphics, 0, 0};
   }
 
-  std::vector<VulkanQueue> VulkanDevice::findComputeQueue(
-    std::vector<std::uint32_t> &inOutUsedQueueCount,
-    std::uint32_t maxQueueCount
-  ) const {
-    const size_t numQueues = queueFamilies.size();
+  std::vector<VulkanQueue> VulkanDevice::findComputeQueue(std::vector<std::uint32_t> &usedQueuesCount) const {
+    const size_t familyCount = queueFamilyProperties.size();
     std::vector<VulkanQueue> queues;
-    for (size_t queueIndex = 0; queueIndex < numQueues && computeQueues.size() < maxQueueCount; queueIndex++) {
-      if (queueFamilies[queueIndex].queueFlags & VK_QUEUE_COMPUTE_BIT &&
-      inOutUsedQueueCount[queueIndex] < queueFamilies[queueIndex].queueCount) {
-        queues.push_back(
-          VulkanQueue(
-            VulkanQueue::Type::Compute,
-            static_cast<std::uint32_t>(queueIndex),
-            inOutUsedQueueCount[queueIndex])
-        );
+    for (size_t familyIndex = 0; familyIndex < familyCount; familyIndex++) {
+      if (queueFamilyProperties[familyIndex].queueFlags & VK_QUEUE_COMPUTE_BIT &&
+          usedQueuesCount[familyIndex] < queueFamilyProperties[familyIndex].queueCount) {
+        LOG_CORE_TRACE("Found compute queue in family {} with {} queues.", familyIndex,
+                       queueFamilyProperties[familyIndex].queueCount);
 
-        inOutUsedQueueCount[queueIndex]++;
+        usedQueuesCount[familyIndex]++;
+        queues.emplace_back(
+          VulkanQueue::Type::Compute,
+          static_cast<std::uint32_t>(familyIndex),
+          usedQueuesCount[familyIndex]
+        );
       }
     }
 
     return queues;
   }
 
-  std::vector<VulkanQueue> VulkanDevice::findTransferQueue(
-    std::vector<std::uint32_t> &inOutUsedQueueCount,
-    std::uint32_t maxQueueCount
-  ) const {
-    const size_t numQueues = queueFamilies.size();
+  std::vector<VulkanQueue> VulkanDevice::findTransferQueues(std::vector<std::uint32_t> &usedQueueCount) const {
+    const size_t familyCount = queueFamilyProperties.size();
     std::vector<VulkanQueue> queues;
-    for( size_t i = 0u; i < numQueues && transferQueues.size() < maxQueueCount; i++) {
-      if(queueFamilies[i].queueFlags & VK_QUEUE_TRANSFER_BIT &&
-          !(queueFamilies[i].queueFlags & ( VK_QUEUE_GRAPHICS_BIT | VK_QUEUE_COMPUTE_BIT ) ) &&
-          inOutUsedQueueCount[i] < queueFamilies[i].queueCount ) {
-        queues.push_back(
-          VulkanQueue(VulkanQueue::Type::Transfer, static_cast<std::uint32_t>(i),
-          inOutUsedQueueCount[i])
+    for (size_t familyIndex = 0; familyIndex < familyCount; familyIndex++) {
+      if (queueFamilyProperties[familyIndex].queueFlags & VK_QUEUE_TRANSFER_BIT &&
+          !(queueFamilyProperties[familyIndex].queueFlags & (VK_QUEUE_GRAPHICS_BIT | VK_QUEUE_COMPUTE_BIT)) &&
+          usedQueueCount[familyIndex] < queueFamilyProperties[familyIndex].queueCount) {
+        LOG_CORE_TRACE("Found transfer queue in family {} with {} queues.", familyIndex,
+                       queueFamilyProperties[familyIndex].queueCount);
+
+        usedQueueCount[familyIndex]++;
+        queues.emplace_back(
+          VulkanQueue::Type::Transfer,
+          static_cast<std::uint32_t>(familyIndex),
+          usedQueueCount[familyIndex]
         );
-        inOutUsedQueueCount[i]++;
       }
     }
 
     return queues;
+  }
+
+  void VulkanDevice::initializeQueues() {
+    VkQueue queue = nullptr;
+    vkGetDeviceQueue(logicalDevice, graphicsQueue.familyIndex, graphicsQueue.queueIndex, &queue);
+    graphicsQueue.initialize(logicalDevice, queue);
+
+    for (auto &computeQueue: computeQueues) {
+      vkGetDeviceQueue(logicalDevice, computeQueue.familyIndex, computeQueue.queueIndex, &queue);
+      computeQueue.initialize(logicalDevice, queue);
+    }
+
+    for (auto &transferQueue: transferQueues) {
+      vkGetDeviceQueue(logicalDevice, transferQueue.familyIndex, transferQueue.queueIndex, &queue);
+      transferQueue.initialize(logicalDevice, queue);
+    }
+
+    presentQueue = graphicsQueue.queue;
+  }
+
+  std::vector<const char*> VulkanDevice::getExtensions() const {
+    static bool foundExtensions = false;
+    static std::vector<const char*> extensions;
+
+    if (foundExtensions)
+      return extensions;
+
+    std::uint32_t extensionCount = 0;
+    vkEnumerateDeviceExtensionProperties(physicalDevice, nullptr, &extensionCount, nullptr);
+
+    std::vector<VkExtensionProperties> availableExtensions(extensionCount);
+    vkEnumerateDeviceExtensionProperties(physicalDevice, nullptr, &extensionCount, availableExtensions.data());
+    for (size_t extensionIndex = 0; extensionIndex < extensionCount; extensionIndex++) {
+      const std::string extensionName = availableExtensions[extensionIndex].extensionName;
+      LOG_CORE_TRACE("Found device extension \"{}\"", extensionName);
+
+      if (extensionName == VK_KHR_MAINTENANCE2_EXTENSION_NAME) {
+        extensions.push_back(VK_KHR_MAINTENANCE2_EXTENSION_NAME);
+        // bCanRestrictImageViewUsage = true;
+      }
+      else if (extensionName == VK_EXT_SHADER_SUBGROUP_VOTE_EXTENSION_NAME)
+        extensions.push_back(VK_EXT_SHADER_SUBGROUP_VOTE_EXTENSION_NAME);
+      else if (extensionName == VK_EXT_SHADER_VIEWPORT_INDEX_LAYER_EXTENSION_NAME) {
+        extensions.push_back(VK_EXT_SHADER_VIEWPORT_INDEX_LAYER_EXTENSION_NAME);
+        // mRealCapabilities->setCapability(RSC_VP_RT_INDEX_ANY_SHADER);
+      }
+
+#ifdef VK_EXT_mesh_shader
+      else if (extensionName == VK_EXT_MESH_SHADER_EXTENSION_NAME) {
+        extensions.push_back(VK_EXT_MESH_SHADER_EXTENSION_NAME);
+        extensions.push_back(VK_KHR_SPIRV_1_4_EXTENSION_NAME);
+        // mRealCapabilities->setCapability(RSC_MESH_PROGRAM);
+        //
+        // mDescriptorSetBindings[0].stageFlags |= VK_SHADER_STAGE_MESH_BIT_NV;
+      }
+#endif
+
+      if(Vulkan::validationLayersSupported())
+        extensions.push_back(VK_EXT_DEBUG_MARKER_EXTENSION_NAME);
+
+      extensions.push_back( VK_KHR_SWAPCHAIN_EXTENSION_NAME );
+    }
+
+    foundExtensions = true;
+    return extensions;
   }
 }

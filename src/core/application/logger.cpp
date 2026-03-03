@@ -3,7 +3,7 @@
 #include "logger.hpp"
 
 namespace Core {
-  void Logger::initialize() {
+  Logger::Logger() {
     spdlog::set_pattern("%^[%Y-%m-%d %H:%M:%S] [%l] [%n] %v%$");
     coreLogger = spdlog::stdout_color_mt("CORE");
     coreLogger->set_level(spdlog::level::trace);

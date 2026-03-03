@@ -1,9 +1,17 @@
 #pragma once
 
-namespace Core::Renderer {
-  enum class Backend {
-    Vulkan,
-  };
+namespace Core::Graphics {
+  class Renderer {
+    public:
+      enum class Backend {
+        Vulkan,
+      };
 
-  void initialize(Backend backend);
+      Renderer(Backend backend);
+
+      Backend getBackend() const { return backend; }
+
+    private:
+      Backend backend;
+  };
 }

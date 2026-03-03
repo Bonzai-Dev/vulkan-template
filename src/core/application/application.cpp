@@ -5,10 +5,7 @@
 
 namespace Core {
   Application::Application(const char *name) {
-    Logger::initialize();
-    Renderer::initialize(Renderer::Backend::Vulkan);
     mainWindow = std::make_shared<Window>(name, true);
-
     running = true;
     run();
   }

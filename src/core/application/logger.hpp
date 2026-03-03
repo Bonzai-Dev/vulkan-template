@@ -5,7 +5,7 @@
 namespace Core {
   class Logger {
     public:
-      static void initialize();
+      Logger();
 
       static std::shared_ptr<spdlog::logger> getCoreLogger() { return coreLogger; }
 
