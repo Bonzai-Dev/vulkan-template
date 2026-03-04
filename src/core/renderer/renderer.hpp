@@ -9,9 +9,9 @@ namespace Core::Graphics {
 
       Renderer(Backend backend);
 
-      Backend getBackend() const { return backend; }
+      static Backend getBackend() { return backend; }
 
     private:
-      Backend backend;
+      static inline Backend backend;
   };
 }

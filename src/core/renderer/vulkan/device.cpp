@@ -38,7 +38,7 @@ namespace Core::Graphics {
     vkGetPhysicalDeviceProperties(physicalDevice, &deviceProperties);
     vkGetPhysicalDeviceFeatures(physicalDevice, &deviceFeatures);
 
-    LOG_CORE_INFO("Using {} as primary GPU.", getName());
+    LOG_CORE_INFO("Rendering using {}.", getName());
 
     const std::uint32_t version = deviceProperties.apiVersion;
     LOG_CORE_DEBUG(

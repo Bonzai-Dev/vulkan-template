@@ -106,10 +106,8 @@ namespace Core::Graphics {
     }
 
     const VkResult instanceResult = vkCreateInstance(&createInfo, nullptr, &vulkanInstance);
-    if (instanceResult != VK_SUCCESS) {
-      LOG_CORE_ERROR("Failed to create Vulkan instance.");
+    if (instanceResult != VK_SUCCESS)
       return instanceResult;
-    }
 
     volkLoadInstanceOnly(vulkanInstance);
 
